@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FastCamClone: Dual-Accelerated Video Camera Control via 
+         Token Decoupling and Preference Optimization Distillation</title>
+    
+    <!-- Using a professional orange-themed favicon placeholder -->
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3211/3211133.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- MathJax Configuration -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['\\(', '\\)']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <!-- Include Lucide icons -->
+    <script src="https://unpkg.com/lucide@0.329.0"></script>
+    
+    <style>
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
+        /* 如果想保留滚动条，可以美化它 */
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e5e7eb;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #fbbf24;
+        }
+        #display-result {
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .selector-btn.active {
+            transform: scale(1.05);
+        }
+
+        /* 确保锚点跳转时不会被顶部的 header 遮住 */
+        #showcase {
+            scroll-margin-top: 2rem;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #fafafa;
+            color: #333;
+        }
+
+        .nav-link {
+            transition: all 0.2s ease;
+        }
+
+        .nav-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+        }
+
+        .video-card {
+            transition: all 0.3s ease;
+        }
+
+        .video-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .scroll-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .scroll-container::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+            border-radius: 10px;
+        }
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: #fbbf24; 
+            border-radius: 10px;
+        }
+
+        /* Toggle Animation */
+        .toggle-knob { transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1); }
+        .toggle-on .toggle-knob { transform: translateX(32px); }
+        .toggle-off .toggle-knob { transform: translateX(2px); }
+        
+        #teaser-noise-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 50%, #7c3aed 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+
+<body class="antialiased">
+
+    <!-- Header Section -->
+    <header class="max-w-7xl mx-auto px-4 pt-16 pb-12 text-center">
+        <!-- Logo Area -->
+        <div class="flex justify-center items-center gap-4 mb-10">
+            <!-- 1. 去掉固定宽高，改用 p-2.5 让框紧贴图标 -->
+            <div class="relative bg-orange-500 p-2.5 rounded-xl shadow-lg shadow-orange-100 flex items-center justify-center">
+                
+                <!-- 2. 相机图标：实心白色 (fill-white)，大小适中 -->
+                <i data-lucide="video" class="text-white fill-white w-9 h-9 md:w-10 md:h-10 stroke-[1.5px]"></i>
+                
+                <!-- 3. 橙色闪电：精准嵌入机身 -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <!-- w-4/5 的大小刚好在相机机身内，-translate-x-0.5 抵消镜头产生的视觉偏移 -->
+                    <i data-lucide="zap" 
+                    class="text-orange-500 fill-orange-500 w-4 h-4 md:w-5 md:h-5 stroke-[2px] transform -translate-x-0.5">
+                    </i>
+                </div>
+            </div>
+
+            <!-- 标题文字 -->
+            <span class="text-4xl md:text-6xl font-black tracking-tighter gradient-text px-1 pb-2">
+                FastCamClone
+            </span>
+        </div>
+
+        <h1 class="max-w-5xl mx-auto text-2xl md:text-4xl font-extrabold tracking-tight text-gray-900 mb-8 leading-tight">
+            Dual-Accelerated Video Camera Control via <br class="hidden md:block">
+            Token Decoupling and Preference Optimization Distillation
+        </h1>
+
+        <!-- 这里是添加的 Orange Team -->
+        <div class="text-2xl md:text-3xl font-extrabold mb-4 tracking-tight">
+            <p class="bg-gradient-to-r from-amber-500 via-orange-600 to-red-500 bg-clip-text text-transparent inline-block px-1 pb-1">
+                Orange Team
+            </p>
+        </div>
+
+        <!-- Authors Area -->
+        <div class="flex flex-wrap justify-center gap-x-8 gap-y-3 text-lg font-medium text-blue-600 mb-6">
+            <a href="#" class="hover:text-orange-600 transition-colors">Jiancheng Zhang
+            <a href="#" class="hover:text-orange-600 transition-colors">Yuyan Huang
+            <a href="#" class="hover:text-orange-600 transition-colors">Dongxia Liu
+            <a href="#" class="hover:text-orange-600 transition-colors">Haijin Zeng
+            <a href="#" class="hover:text-orange-600 transition-colors">Jun Liang
+            <a href="#" class="hover:text-orange-600 transition-colors">Jing Li
+        </div>
+
+
+        <!-- Project Links -->
+        <div class="flex flex-wrap justify-center gap-4">
+            <a href="#" class="nav-link flex items-center gap-2 bg-gray-900 text-white px-6 py-3 rounded-full font-semibold">
+                <i data-lucide="file-text" class="w-5 h-5"></i> Paper
+            </a>
+            <a href="#" class="nav-link flex items-center gap-2 bg-gray-900 text-white px-6 py-3 rounded-full font-semibold">
+                <i data-lucide="github" class="w-5 h-5"></i> Code
+            </a>
+            <a href="#showcase" class="nav-link flex items-center gap-2 bg-orange-500 text-white px-6 py-3 rounded-full font-semibold shadow-lg shadow-orange-200">
+                <i data-lucide="play-circle" class="w-5 h-5"></i> Demo Video
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 mb-20">
+
+        <!-- Interactive Teaser: Acceleration Comparison -->
+        <section class="mb-20">
+            <div class="flex flex-col items-center mb-10">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">Ultra-Efficient Camera Cloning</h2>
+                <p class="text-gray-600 max-w-3xl text-center text-lg mb-8">
+                    FastCamClone captures cinematic camera trajectories and generates high-fidelity videos. 
+                    Our dual-acceleration strategy achieves <strong>2× architectural speedup</strong> and <strong>few-step sampling</strong>.
+                </p>
+                
+                <!-- Speed Toggle -->
+                <div class="flex items-center gap-4 bg-white p-2 rounded-full border border-gray-200 shadow-sm" id="speed-toggle-container">
+                    <span class="pl-4 font-bold text-gray-500" id="label-standard">Teacher (30 steps)</span>
+                    <button id="speed-toggle" class="w-14 h-7 bg-orange-500 rounded-full relative transition-colors toggle-on">
+                        <div class="toggle-knob w-5 h-5 bg-white rounded-full absolute top-1 left-[2px] shadow-md"></div>
+                    </button>
+                    <span class="pr-4 font-bold text-orange-600" id="label-fast">FastCamClone (4 steps)</span>
+                </div>
+            </div>
+
+            <!-- Comparison Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+                
+                <!-- Left Column: Two Separate Cards (1/3 width) -->
+                <div class="lg:col-span-1 flex flex-col gap-6">
+                    
+                    <!-- 1. Camera Reference Card -->
+                    <div class="flex-1 bg-white p-4 rounded-2xl shadow-xl border border-gray-100 flex flex-col transition-all hover:shadow-2xl">
+                        <h3 class="flex items-center gap-2 text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">
+                            <i data-lucide="camera" class="w-4 h-4 text-orange-500"></i> Camera Reference
+                        </h3>
+                        <div class="flex-grow aspect-video bg-gray-50 rounded-xl overflow-hidden border border-gray-50">
+                            <!-- 修改这里：img 换成 video -->
+                            <video id="teaser-motion-video" autoplay loop muted playsinline class="w-full h-full object-cover">
+                                <source src="./assets/display/cam.mp4" type="video/mp4">
+                            </video>
+                        </div>
+                    </div>
+
+                    <!-- 2. Content Reference Card -->
+                    <div class="flex-1 bg-white p-4 rounded-2xl shadow-xl border border-gray-100 flex flex-col transition-all hover:shadow-2xl">
+                        <h3 class="flex items-center gap-2 text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">
+                            <i data-lucide="image" class="w-4 h-4 text-orange-500"></i> Content Reference
+                        </h3>
+                        <div class="flex-grow aspect-video bg-gray-50 rounded-xl overflow-hidden border border-gray-50">
+                            <!-- 修改这里：img 换成 video -->
+                            <video  id="teaser-content-video" autoplay loop muted playsinline class="w-full h-full object-cover">
+                                <source src="./assets/display/content.mp4" type="video/mp4">
+                            </video>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Single Large Result Card (2/3 width) -->
+                <div class="lg:col-span-2 bg-white p-4 rounded-2xl shadow-xl border border-gray-100 flex flex-col h-full transition-all duration-300 hover:shadow-2xl">
+                    <h3 class="flex items-center gap-2 text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-orange-500"></i> Generated Cinematic Video
+                    </h3>
+                    
+                    <div class="flex-grow relative bg-black rounded-xl overflow-hidden shadow-inner">
+                        <!-- 修改这里：id="main-result" 的 img 换成 video -->
+                        <video id="main-result" autoplay loop muted playsinline class="w-full h-full object-cover">
+                            <source src="./assets/display/result_fast.mp4" type="video/mp4">
+                        </video>
+                        
+                        <!-- Noise Overlay -->
+                        <div id="noise-overlay" class="absolute inset-0 z-20 pointer-events-none transition-opacity duration-500">
+                            <canvas id="teaser-noise-canvas"></canvas>
+                        </div>
+                        
+                        <!-- Badge -->
+                        <div class="absolute top-4 right-4 z-30 flex gap-2">
+                            <span id="orange-step-badge" class="bg-orange-500 text-white text-[10px] px-2 py-1 rounded-md font-bold shadow-lg">
+                                STEPS: 04
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- New Section: Distillation Refinement Showcase -->
+            <section class="mt-16 mb-20">
+                <!-- 标题与 Cinematic Showcases 保持完全一致 -->
+                <h2 class="text-2xl font-bold mb-6 text-gray-900 border-b pb-4 flex items-center gap-2">
+                    <i data-lucide="zap" class="text-orange-500"></i> Distillation Refinement Showcase
+                </h2>
+
+                <!-- 描述部分：简洁突出修正效果 -->
+                <p class="text-gray-700 max-w-7xl text-lg mb-8 leading-relaxed">
+                    <span class="font-bold text-orange-600">Student vs. Teacher.</span> 
+                     FastCamClone not only achieves high-fidelity, few-step generation but effectively <span class="font-semibold text-gray-900 italic underline decoration-orange-300"> rectifies the control failures of the teacher model corrects the instabilities of the teacher</span>.
+                </p>
+
+                <!-- Video Card Container (保持不变) -->
+                <div class="bg-white p-4 md:p-6 rounded-2xl shadow-xl border border-gray-100 transition-all hover:shadow-2xl">
+                    <div class="relative aspect-video bg-black rounded-xl overflow-hidden shadow-2xl group">
+                        
+                        <!-- Comparison Video -->
+                        <video autoplay loop muted playsinline class="w-full h-full object-contain">
+                            <source src="./assets/distill_comparison.mp4" type="video/mp4">
+                        </video>
+
+                        <!-- Overlay Labels -->
+                        <div class="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
+                            <div class="flex justify-between items-end">
+                                <div class="space-y-1">
+                                    <span class="bg-gray-800/80 text-gray-300 text-[10px] px-2 py-1 rounded uppercase tracking-widest font-bold border border-white/10">Teacher</span>
+                                    <p class="text-white text-sm font-medium">Unstable/Ambiguous Motion</p>
+                                </div>
+                                <div class="text-right space-y-1">
+                                    <span class="bg-orange-600/80 text-white text-[10px] px-2 py-1 rounded uppercase tracking-widest font-bold border border-orange-400/30">Student</span>
+                                    <p class="text-orange-400 text-sm font-bold italic">POD Corrected & Enhanced</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+
+        <!-- Result Gallery -->
+        <!-- Cinematic Showcases: Two-Column Interactive Section -->
+        <section id="showcase" class="mb-20 scroll-mt-20 mt-16">
+            <h2 class="text-2xl font-bold mb-6 text-gray-900 border-b pb-4 flex items-center gap-2">
+                <i data-lucide="clapperboard" class="text-orange-500"></i> Cinematic Showcases
+            </h2>
+
+            <!-- Main Card Container -->
+            <div class="bg-white rounded-2xl shadow-xl p-4 md:p-8 mb-8 border border-gray-100">
+                <!-- Top Row: Display Area (Two-Column Layout) -->
+                <div class="flex flex-col lg:flex-row gap-8 mb-10">
+
+                    <!-- Left Column: Inputs (approx. 1/3 width) -->
+                    <div class="w-full lg:w-1/3 flex flex-col gap-6">
+                        <!-- Camera Input Box -->
+                        <div>
+                            <h3 class="text-lg font-bold flex items-center justify-center lg:justify-start gap-2 text-gray-800 mb-4">
+                                <i data-lucide="camera" class="text-orange-500"></i> Camera Reference
+                            </h3>
+                            <div class="aspect-video bg-gray-50 rounded-xl overflow-hidden border border-gray-200 shadow-sm relative group">
+                                <video id="display-camera" autoplay loop muted playsinline class="w-full h-full object-cover">
+                                    <source src="./assets/samples/cam_1.mp4" type="video/mp4">
+                                </video>
+                                <div class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                            </div>
+                        </div>
+                        <!-- Content Input Box -->
+                        <div>
+                            <h3 class="text-lg font-bold flex items-center justify-center lg:justify-start gap-2 text-gray-800 mb-4">
+                                <i data-lucide="image" class="text-orange-500"></i> Content Reference
+                            </h3>
+                            <div class="aspect-video bg-gray-50 rounded-xl overflow-hidden border border-gray-200 shadow-sm relative group">
+                                <video id="display-content" autoplay loop muted playsinline class="w-full h-full object-cover">
+                                    <source src="./assets/samples/content_1.mp4" type="video/mp4">
+                                </video>
+                                <div class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Result (approx. 2/3 width) -->
+                    <div class="w-full lg:w-2/3 flex flex-col">
+                        <h3 class="text-lg font-bold flex items-center justify-center gap-2 text-gray-800 mb-4">
+                            <i data-lucide="sparkles" class="text-orange-500"></i> FastCamClone Generation
+                        </h3>
+                        <div class="flex-grow aspect-video bg-black rounded-xl overflow-hidden shadow-2xl relative border border-gray-100 group">
+                            <video id="display-result" autoplay loop muted playsinline class="w-full h-full object-cover">
+                                <source src="./assets/samples/result_1_1.mp4" type="video/mp4">
+                            </video>
+                            
+                            <!-- Performance Badges -->
+                            <!-- <div class="absolute top-4 right-4 flex gap-2">
+                                <span class="bg-orange-500 text-white text-[10px] px-2 py-1 rounded-md font-bold shadow-lg">STEPS: 04</span>
+                            </div> -->
+
+                            <!-- Scene Info Overlay (Optional) -->
+                            <div class="absolute bottom-4 left-4 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-lg text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                Current Mode: <span id="prop-motion-tag" class="text-orange-300 font-bold">Orbiting Shot</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Controls: Selection Area (完全对齐参考布局风格) -->
+                <div class="border-t border-gray-100 pt-10">
+                    <!-- 使用 flex 布局以便中间插入竖线 -->
+                    <div class="flex flex-col md:flex-row items-stretch gap-0">
+                        
+                        <!-- 1. Camera Selector Group -->
+                        <div class="flex-1 px-4 lg:px-8 flex flex-col items-center">
+                            <h4 class="text-base font-bold text-gray-800 flex items-center gap-2 mb-6">
+                                <i data-lucide="video" class="text-orange-500 w-5 h-5"></i> 1. Choose Camera Trajectory
+                            </h4>
+                            <!-- 加大的缩略图容器 -->
+                            <div class="flex flex-wrap justify-center gap-4" id="camera-selector">
+                                <!-- 第 1 个相机按钮 -->
+                                <button onclick="updateCamera(1, this, 'Orbiting Shot')" class="selector-btn active w-32 md:w-36 aspect-video rounded-xl overflow-hidden border-2 border-orange-500 shadow-lg flex-shrink-0 transition-all hover:scale-105">
+                                    <video class="w-full h-full object-cover pointer-events-none" preload="metadata" muted>
+                                        <source src="./assets/samples/cam_1.mp4#t=0.1" type="video/mp4">
+                                    </video>
+                                </button>
+
+                                <!-- 第 2 个相机按钮 -->
+                                <button onclick="updateCamera(2, this, 'Orbiting Shot')" class="selector-btn w-32 md:w-36 aspect-video rounded-xl overflow-hidden border border-gray-200 hover:border-orange-300 flex-shrink-0 transition-all hover:scale-105">
+                                    <video class="w-full h-full object-cover pointer-events-none" preload="metadata" muted>
+                                        <source src="./assets/samples/cam_2.mp4#t=0.1" type="video/mp4">
+                                    </video>
+                                </button>
+
+                                <!-- 第 3 个相机按钮 -->
+                                <button onclick="updateCamera(3, this, 'Orbiting Shot')" class="selector-btn w-32 md:w-36 aspect-video rounded-xl overflow-hidden border border-gray-200 hover:border-orange-300 flex-shrink-0 transition-all hover:scale-105">
+                                    <video class="w-full h-full object-cover pointer-events-none" preload="metadata" muted>
+                                        <source src="./assets/samples/cam_3.mp4#t=0.1" type="video/mp4">
+                                    </video>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 垂直分割线 (只在桌面端显示) -->
+                        <div class="hidden md:block w-px bg-gray-200 self-stretch my-2"></div>
+
+                        <!-- 2. Content Selector Group -->
+                        <div class="flex-1 px-4 lg:px-8 flex flex-col items-center mt-10 md:mt-0">
+                            <h4 class="text-base font-bold text-gray-800 flex items-center gap-2 mb-6">
+                                <i data-lucide="clapperboard" class="text-orange-500 w-5 h-5"></i> 2. Choose Content Video
+                            </h4>
+                            <!-- 加大的缩略图容器 -->
+                            <div class="flex flex-wrap justify-center gap-4" id="content-selector">
+                                <!-- 第 1 个内容按钮 -->
+                                <button onclick="updateContent(1, this)" class="selector-btn active w-32 md:w-36 aspect-video rounded-xl overflow-hidden border-2 border-orange-500 shadow-lg flex-shrink-0 transition-all hover:scale-105">
+                                    <video class="w-full h-full object-cover pointer-events-none" preload="metadata" muted>
+                                        <source src="./assets/samples/content_1.mp4#t=0.1" type="video/mp4">
+                                    </video>
+                                </button>
+
+                                <!-- 第 2 个内容按钮 -->
+                                <button onclick="updateContent(2, this)" class="selector-btn w-32 md:w-36 aspect-video rounded-xl overflow-hidden border border-gray-200 hover:border-orange-300 flex-shrink-0 transition-all hover:scale-105">
+                                    <video class="w-full h-full object-cover pointer-events-none" preload="metadata" muted>
+                                        <source src="./assets/samples/content_2.mp4#t=0.1" type="video/mp4">
+                                    </video>
+                                </button>
+
+                                <!-- 第 3 个内容按钮
+                                <button onclick="updateContent(3, this)" class="selector-btn w-32 md:w-36 aspect-video rounded-xl overflow-hidden border border-gray-200 hover:border-orange-300 flex-shrink-0 transition-all hover:scale-105">
+                                    <video class="w-full h-full object-cover pointer-events-none" preload="metadata" muted>
+                                        <source src="./assets/samples/content_3.mp4#t=0.1" type="video/mp4">
+                                    </video>
+                                </button> -->
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+
+        <!-- Abstract & Method -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-16 mb-20">
+            <!-- Left: Abstract -->
+            <div class="lg:col-span-2">
+                <h2 class="text-3xl font-bold mb-6 text-gray-900 flex items-center gap-3">
+                    <span class="w-8 h-1 bg-orange-500"></span> Abstract
+                </h2>
+                <p class="text-gray-700 leading-relaxed text-lg text-justify italic">
+                    "Replicating reference camera trajectories unlocks immense potential for cinematic video creation. However, standard Diffusion Transformers (DiTs) face quadratic token complexity and slow iterative sampling..."
+                </p>
+                <p class="text-gray-700 leading-relaxed text-lg mt-4 text-justify">
+                    We present <strong>FastCamClone</strong>, a framework that decouples conditioning mechanisms to eliminate overhead. We inject camera motion as macroscopic signals directly into noise latents (<strong>SPMI</strong>) and resolve content-target ambiguity via <strong>Phase-shifted RoPE</strong>. Our <strong>Preference Optimization Distillation (POD)</strong> enables high-fidelity, few-step generation by treating reference latents as positive anchors.
+                </p>
+            </div>
+
+            <!-- Right: Methodology Highlights -->
+            <div class="lg:col-span-3">
+                <h2 class="text-3xl font-bold mb-8 text-gray-900">Methodology</h2>
+                
+                <div class="space-y-6">
+                    <!-- Feature 1 -->
+                    <div class="flex gap-5 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                        <div class="bg-orange-100 text-orange-600 p-3 rounded-xl h-fit">
+                            <i data-lucide="layers"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-xl text-gray-900 mb-2">Decoupled Conditional Injection</h4>
+                            <p class="text-gray-600">Splits content and camera cues. Uses Single-Point Macro Injection (SPMI) to slash attention complexity from \(9N^2\) to \(4N^2\), accelerating inference by 2×.</p>
+                        </div>
+                    </div>
+
+                    <!-- Feature 2 -->
+                    <div class="flex gap-5 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                        <div class="bg-orange-100 text-orange-600 p-3 rounded-xl h-fit">
+                            <i data-lucide="zap"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-xl text-gray-900 mb-2">Preference Optimization Distillation (POD)</h4>
+                            <p class="text-gray-600">An RL-based distillation scheme that anchors student predictions to both teacher steps and ground-truth targets, enabling cinematic results in just 4-8 steps.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Framework Diagram -->
+                <!-- <div class="mt-10 p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                    <img src="./assets/diagrams/Framework.png" class="w-full rounded-lg" alt="Framework">
+                    <p class="text-center text-sm text-gray-400 mt-3 font-medium">FastCamClone Architectural Pipeline</p>
+                </div> -->
+            </div>
+        </div>
+
+
+        <!-- BibTeX Section -->
+        <!-- BibTeX Section -->
+        <section class="w-full mt-12"> <!-- 修改了这一行 -->
+            <h2 class="text-2xl font-bold mb-6 text-gray-900 border-b pb-4 flex items-center gap-2">
+                <i data-lucide="quote" class="text-orange-500"></i> BibTeX
+            </h2>
+            <!-- 移除 overflow-hidden 以防滚动条样式奇怪，或者保留它但确保 pre 宽度正确 -->
+            <div class="bg-gray-900 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
+                <!-- 装饰性元素 -->
+                <div class="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full -mr-16 -mt-16"></div>
+                
+                <!-- 添加 break-words 或者确保在移动端也能正常显示 -->
+                <pre class="text-orange-100/90 text-sm font-mono leading-relaxed overflow-x-auto whitespace-pre-wrap md:whitespace-pre"><code>@article{fastcamclone2026,
+        title={FastCamClone: Dual-Accelerated Video Camera Control via Token Decoupling and Preference Optimization Distillation},
+        author={Jiancheng Zhang, Yuyan Huang, Dongxia Liu, Haijin Zeng, Jun Liang, Jing li},
+        journal={unpublished manuscript},
+        year={2026}
+        }</code></pre>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-100 py-12 text-center">
+        <div class="flex justify-center items-center gap-3 mb-4">
+            <!-- 页脚缩小版 Logo：由 p-2.5 缩小为 p-1.5，由 rounded-xl 缩小为 rounded-lg -->
+            <div class="relative bg-orange-500 p-1.5 rounded-lg shadow-md flex items-center justify-center">
+                
+                <!-- 1. 相机图标：缩小至 w-6 h-6 -->
+                <i data-lucide="video" class="text-white fill-white w-6 h-6 stroke-[1.5px]"></i>
+                
+                <!-- 2. 橙色闪电：精准嵌入机身 -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <!-- 闪电缩小至 w-2.5 h-2.5，保持视觉比例 -->
+                    <i data-lucide="zap" 
+                    class="text-orange-500 fill-orange-500 w-2.5 h-2.5 stroke-[2px] transform -translate-x-0.5">
+                    </i>
+                </div>
+            </div>
+                    <!-- 品牌名称 -->
+            <span class="font-extrabold text-gray-800 text-lg tracking-tight">FastCamClone</span>
+        </div>
+        <p class="text-gray-400 text-sm italic">&copy; 2026 Orange Team. For demonstration and research purposes only.</p>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        /* =========================================================================
+           Inference Animation Logic
+           ========================================================================= */
+        let currentCamIdx = 1;
+        let currentContentIdx = 1;   
+        let isFast = true;
+        const toggleBtn = document.getElementById('speed-toggle');
+        const noiseOverlay = document.getElementById('noise-overlay');
+        const stepDisplay = document.getElementById('step-count');
+        const canvas = document.getElementById('teaser-noise-canvas');
+        const labels = {
+            standard: document.getElementById('label-standard'),
+            fast: document.getElementById('label-fast')
+        };
+
+        function updateCamera(idx, el, motionName) {
+            currentCamIdx = idx;
+            const video = document.getElementById('display-camera');
+            video.src = `./assets/samples/cam_${idx}.mp4`; // 后缀改为 mp4
+            video.play(); // 确保切换后播放
+            
+            document.getElementById('prop-motion-tag').innerText = motionName;
+            updateButtonStyles('camera-selector', el);
+            refreshResult();
+        }
+
+        function updateContent(idx, el) {
+            currentContentIdx = idx;
+            const video = document.getElementById('display-content');
+            video.src = `./assets/samples/content_${idx}.mp4`; // 后缀改为 mp4
+            video.play();
+            
+            updateButtonStyles('content-selector', el);
+            refreshResult();
+        }
+
+        function updateButtonStyles(containerId, activeBtn) {
+            const btns = document.getElementById(containerId).querySelectorAll('.selector-btn');
+            btns.forEach(btn => {
+                // 恢复为默认的浅灰色细边框
+                btn.classList.remove('active', 'border-orange-500', 'shadow-lg');
+                btn.classList.add('border-gray-200');
+            });
+            // 设置为激活状态的橙色粗边框
+            activeBtn.classList.add('active', 'border-orange-500', 'shadow-lg');
+            activeBtn.classList.remove('border-gray-200');
+        }
+
+        function refreshResult() {
+            const resultVideo = document.getElementById('display-result');
+            const camVideo = document.getElementById('display-camera');   // 左上小窗
+            const contentVideo = document.getElementById('display-content'); // 左下小窗
+            
+            resultVideo.style.opacity = '0.7'; 
+            
+            // 重置左侧两个参考视频
+            if (camVideo) { camVideo.currentTime = 0; camVideo.play(); }
+            if (contentVideo) { contentVideo.currentTime = 0; contentVideo.play(); }
+
+            setTimeout(() => {
+                resultVideo.src = `./assets/samples/result_${currentCamIdx}_${currentContentIdx}.mp4`;
+                resultVideo.currentTime = 0; // 结果视频也从头播放
+                resultVideo.play();
+                resultVideo.style.opacity = '1';
+            }, 100);
+        }
+
+        function generateNoise() {
+            const ctx = canvas.getContext('2d');
+            canvas.width = 256;
+            canvas.height = 144;
+            const imageData = ctx.createImageData(canvas.width, canvas.height);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const noise = Math.random() * 255;
+                data[i] = data[i+1] = data[i+2] = noise;
+                data[i+3] = 255;
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        function runInference() {
+            // Reset noise
+            noiseOverlay.style.transition = 'none';
+            noiseOverlay.style.opacity = '1';
+            generateNoise();
+
+            // Delay for "thinking"
+            setTimeout(() => {
+                const duration = isFast ? '0.4s' : '1.8s';
+                noiseOverlay.style.transition = `opacity ${duration} cubic-bezier(0.4, 0, 0.2, 1)`;
+                noiseOverlay.style.opacity = '0';
+            }, 50);
+        }
+
+        document.getElementById('speed-toggle-container').addEventListener('click', () => {
+            isFast = !isFast;
+            const orangeBadge = document.getElementById('orange-step-badge');
+            const mainResultVideo = document.getElementById('main-result'); // 获取视频元素
+
+            // 获取左侧两个参考视频元素
+            const v1 = document.getElementById('teaser-motion-video');
+            const v2 = document.getElementById('teaser-content-video');
+            // 每次切换时，将时间设为0并播放
+            if (v1) { v1.currentTime = 0; v1.play(); }
+            if (v2) { v2.currentTime = 0; v2.play(); }
+            if (isFast) {
+                toggleBtn.classList.add('toggle-on');
+                toggleBtn.classList.remove('toggle-off');
+                labels.fast.classList.replace('text-gray-500', 'text-orange-600');
+                labels.standard.classList.replace('text-orange-600', 'text-gray-500');
+                orangeBadge.innerText = "STEPS: 04";
+                
+                // 修改视频路径为 mp4
+                mainResultVideo.src = "./assets/display/result_fast.mp4";
+            } else {
+                toggleBtn.classList.add('toggle-off');
+                toggleBtn.classList.remove('toggle-on');
+                labels.standard.classList.replace('text-gray-500', 'text-orange-600');
+                labels.fast.classList.replace('text-orange-600', 'text-gray-500');
+                orangeBadge.innerText = "STEPS: 30";
+                
+                // 修改视频路径为 mp4 (假设你有一个 slow 版本的 mp4)
+                mainResultVideo.src = "./assets/display/result_standard.mp4"; 
+            }
+            
+            mainResultVideo.load(); // 重新加载视频源
+            mainResultVideo.play(); // 确保播放
+            runInference();
+        });
+
+        // Start initial animation
+        runInference();
+    </script>
+</body>
+</html>
